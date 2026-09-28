@@ -1,0 +1,1125 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Соседский помощник API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: auth
+  - name: tasks
+  - name: offers
+  - name: reviews
+  - name: users
+  - name: wallet
+  - name: dashboard
+  - name: admin
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: authRegister
+      tags: [auth]
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRegisterInput"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailVerificationResponse"
+
+  /auth/verify-email:
+    get:
+      operationId: verifyEmail
+      tags: [auth]
+      summary: Подтвердить email по ссылке
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the app with verification result
+        "400":
+          description: Invalid or expired verification link
+
+  /auth/resend-verification:
+    post:
+      operationId: resendVerification
+      tags: [auth]
+      summary: Повторно отправить письмо с подтверждением email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendVerificationInput"
+      responses:
+        "200":
+          description: Generic response to avoid email enumeration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/login:
+    post:
+      operationId: authLogin
+      tags: [auth]
+      summary: Вход по email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginInput"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /auth/demo:
+    post:
+      operationId: authDemo
+      tags: [auth]
+      summary: Войти как демо-пользователь
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags: [auth]
+      summary: Выйти из аккаунта
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: Текущий пользователь
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    patch:
+      operationId: updateMe
+      tags: [users]
+      summary: Обновить профиль
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMeInput"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /me/telegram:
+    get:
+      operationId: getTelegramStatus
+      tags: [users]
+      summary: Состояние привязки Telegram
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramStatus"
+    post:
+      operationId: createTelegramLinkToken
+      tags: [users]
+      summary: Сгенерировать код привязки Telegram
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramStatus"
+    delete:
+      operationId: unlinkTelegram
+      tags: [users]
+      summary: Отвязать Telegram
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramStatus"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Профиль пользователя с рейтингом и отзывами
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: Лента заданий поблизости
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskCategory"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskStatus"
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+        - name: maxDistanceMeters
+          in: query
+          required: false
+          schema: { type: integer, minimum: 50, maximum: 50000 }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Создать задание
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewTaskInput"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Детали задания
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+
+  /tasks/{id}/offers:
+    get:
+      operationId: listOffers
+      tags: [offers]
+      summary: Отклики на задание
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Offer"
+    post:
+      operationId: createOffer
+      tags: [offers]
+      summary: Откликнуться на задание (исполнитель назначает свою цену)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewOfferInput"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Offer"
+
+  /tasks/{id}/accept:
+    post:
+      operationId: acceptOffer
+      tags: [offers]
+      summary: Принять отклик исполнителя и заморозить деньги в безопасной сделке
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptOfferInput"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+
+  /tasks/{id}/ready:
+    post:
+      operationId: markTaskReady
+      tags: [tasks]
+      summary: Исполнитель отмечает «Я закончил, ждёт проверки»
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+
+  /tasks/{id}/confirm-payment:
+    post:
+      operationId: confirmPayment
+      tags: [tasks]
+      summary: Подтвердить оплату через Kaspi/Halyk — завершает задание и открывает отзыв
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+
+  /tasks/{id}/complete:
+    post:
+      operationId: completeTask
+      tags: [tasks]
+      summary: Принять работу (переводит в статус awaiting_payment — ожидание оплаты)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+
+  /tasks/{id}/cancel:
+    post:
+      operationId: cancelTask
+      tags: [tasks]
+      summary: Отменить задание (возврат средств заказчику)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+
+  /tasks/{id}/reviews:
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Оставить отзыв после выполнения
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewReviewInput"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /tasks/{id}/messages:
+    get:
+      operationId: listTaskMessages
+      tags: [tasks]
+      summary: Получить сообщения чата по заданию
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messages]
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TaskMessage"
+    post:
+      operationId: sendTaskMessage
+      tags: [tasks]
+      summary: Отправить сообщение в чат задания
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageInput"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskMessage"
+
+  /my/notifications:
+    get:
+      operationId: getMyNotifications
+      tags: [tasks]
+      summary: Лента уведомлений для текущего пользователя (по его заданиям)
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ActivityEvent"
+
+  /my/tasks:
+    get:
+      operationId: listMyTasks
+      tags: [tasks]
+      summary: Задания, которые я создал
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  /my/jobs:
+    get:
+      operationId: listMyJobs
+      tags: [tasks]
+      summary: Задания, которые я выполняю или выполнил
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  /wallet:
+    get:
+      operationId: getWallet
+      tags: [wallet]
+      summary: Баланс кошелька и история операций безопасной сделки
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Сводка для главной — счётчики по категориям, активные задания, рейтинг района
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Лента последних событий района
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityEvent"
+
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: Список всех пользователей (только для администраторов)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /admin/users/{id}:
+    delete:
+      operationId: adminDeleteUser
+      tags: [admin]
+      summary: Удалить пользователя
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+    patch:
+      operationId: adminUpdateUser
+      tags: [admin]
+      summary: Обновить пользователя (имя, isAdmin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpdateUserInput"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /admin/tasks:
+    get:
+      operationId: adminListTasks
+      tags: [admin]
+      summary: Список всех заданий (только для администраторов)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskStatus"
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  /admin/tasks/{id}:
+    delete:
+      operationId: adminDeleteTask
+      tags: [admin]
+      summary: Удалить/отменить задание
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+
+  /admin/wallet/credit:
+    post:
+      operationId: adminWalletCredit
+      tags: [admin]
+      summary: Пополнить кошелёк пользователя вручную
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminWalletCreditInput"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /admin/stats:
+    get:
+      operationId: adminGetStats
+      tags: [admin]
+      summary: Статистика платформы для администратора
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /dashboard/top-helpers:
+    get:
+      operationId: getTopHelpers
+      tags: [dashboard]
+      summary: Топ помощников района по рейтингу
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+
+    TelegramStatus:
+      type: object
+      required: [linked, configured, botUsername]
+      properties:
+        linked: { type: boolean }
+        configured: { type: boolean, description: "Бот настроен на сервере" }
+        botUsername: { type: string }
+        linkToken: { type: string, nullable: true, description: "Активный код привязки, если ещё не использован" }
+        linkUrl: { type: string, nullable: true, description: "Готовая ссылка t.me с deep-link кодом" }
+
+    TaskCategory:
+      type: string
+      enum:
+        - walk_dog
+        - groceries
+        - parcel_pickup
+        - plant_care
+        - pet_sitting
+        - errand
+        - cleaning_help
+        - other
+      description: Категория задания
+
+    TaskStatus:
+      type: string
+      enum:
+        - open
+        - in_progress
+        - awaiting_payment
+        - completed
+        - cancelled
+
+    User:
+      type: object
+      required: [id, name, rating, reviewCount, completedJobs, joinedAt, isAdmin, walletBalanceTenge]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        username: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        addressLine: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        bio: { type: string, nullable: true }
+        rating: { type: number, format: float, description: "Средний рейтинг 0..5" }
+        reviewCount: { type: integer }
+        completedJobs: { type: integer }
+        city:
+          type: string
+          nullable: true
+          description: Город из списка или город, указанный пользователем вручную
+        district: { type: string, nullable: true }
+        isAdmin: { type: boolean }
+        joinedAt: { type: string, format: date-time }
+        walletBalanceTenge: { type: integer, description: "Баланс кошелька в тенге" }
+
+    UpdateMeInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        bio: { type: string, nullable: true, maxLength: 500 }
+        phone: { type: string, nullable: true }
+        city:
+          type: string
+          nullable: true
+          description: Город из списка или город, указанный пользователем вручную
+        addressLine: { type: string, nullable: true }
+
+    AuthRegisterInput:
+      type: object
+      required: [name, email, password, city]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, format: email, description: "Email для входа" }
+        password: { type: string, minLength: 6, maxLength: 200 }
+        city:
+          type: string
+          description: Город из списка или город, указанный пользователем вручную
+        addressLine: { type: string, nullable: true }
+
+    ResendVerificationInput:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+
+    EmailVerificationResponse:
+      type: object
+      required: [message, email, emailVerificationRequired]
+      properties:
+        message: { type: string }
+        email: { type: string, format: email }
+        emailVerificationRequired: { type: boolean }
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+
+    AdminUpdateUserInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        username: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        addressLine: { type: string, nullable: true }
+        bio: { type: string, nullable: true }
+        isAdmin: { type: boolean }
+        password: { type: string, minLength: 6, maxLength: 200, description: "Новый пароль (минимум 6 символов)" }
+
+    TaskMessage:
+      type: object
+      required: [id, taskId, fromUserId, fromUserName, text, createdAt]
+      properties:
+        id: { type: string }
+        taskId: { type: string }
+        fromUserId: { type: string }
+        fromUserName: { type: string }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    SendMessageInput:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 2000 }
+
+    AdminWalletCreditInput:
+      type: object
+      required: [userId, amountTenge]
+      properties:
+        userId: { type: string }
+        amountTenge: { type: integer, description: "Сумма в тенге (положительная — пополнение, отрицательная — списание)" }
+        description: { type: string, description: "Комментарий к операции" }
+
+    AdminStats:
+      type: object
+      required: [totalUsers, newUsersThisMonth, totalTasks, tasksByStatus, totalEarnedTenge, totalCommissionTenge, totalEscrowTasks]
+      properties:
+        totalUsers: { type: integer }
+        newUsersThisMonth: { type: integer }
+        totalTasks: { type: integer }
+        tasksByStatus:
+          type: object
+          required: [open, in_progress, awaiting_payment, completed, cancelled]
+          properties:
+            open: { type: integer }
+            in_progress: { type: integer }
+            awaiting_payment: { type: integer }
+            completed: { type: integer }
+            cancelled: { type: integer }
+        totalEarnedTenge: { type: integer }
+        totalCommissionTenge: { type: integer }
+        totalEscrowTasks: { type: integer }
+
+    AuthLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, description: Email для входа }
+        password: { type: string }
+
+    UserProfile:
+      type: object
+      required: [user, recentReviews]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        recentReviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - category
+        - status
+        - awaitingReview
+        - priceTenge
+        - useEscrow
+        - address
+        - distanceMeters
+        - latitude
+        - longitude
+        - owner
+        - offerCount
+        - createdAt
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        category:
+          $ref: "#/components/schemas/TaskCategory"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        awaitingReview:
+          type: boolean
+          description: Исполнитель отметил задание выполненным и ждёт подтверждения заказчика
+        priceTenge:
+          type: integer
+          description: Цена, предложенная заказчиком, в тенге
+        useEscrow:
+          type: boolean
+          description: Использовать безопасную сделку (с комиссией платформы)
+        address: { type: string }
+        distanceMeters:
+          type: integer
+          description: Расстояние от центра района в метрах
+        latitude: { type: number, format: double, minimum: -90, maximum: 90 }
+        longitude: { type: number, format: double, minimum: -180, maximum: 180 }
+        deadline: { type: string, format: date-time, nullable: true }
+        owner:
+          $ref: "#/components/schemas/User"
+        executor:
+          allOf:
+            - $ref: "#/components/schemas/User"
+          nullable: true
+        offerCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        paymentPhone: { type: string, nullable: true }
+        paymentAmount: { type: integer, nullable: true }
+
+    TaskDetail:
+      type: object
+      required: [task, offers, escrow]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        offers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Offer"
+        escrow:
+          $ref: "#/components/schemas/Escrow"
+
+    NewTaskInput:
+      type: object
+      required: [title, description, category, priceTenge, address, latitude, longitude, useEscrow]
+      properties:
+        title: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: string, minLength: 5, maxLength: 1000 }
+        category:
+          $ref: "#/components/schemas/TaskCategory"
+        priceTenge: { type: integer, minimum: 100, maximum: 1000000 }
+        address: { type: string, minLength: 3 }
+        latitude: { type: number, format: double, minimum: -90, maximum: 90 }
+        longitude: { type: number, format: double, minimum: -180, maximum: 180 }
+        useEscrow: { type: boolean }
+        deadline: { type: string, format: date-time, nullable: true }
+
+    Offer:
+      type: object
+      required: [id, taskId, executor, priceTenge, message, createdAt, status]
+      properties:
+        id: { type: string }
+        taskId: { type: string }
+        executor:
+          $ref: "#/components/schemas/User"
+        priceTenge: { type: integer }
+        message: { type: string }
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+        createdAt: { type: string, format: date-time }
+
+    NewOfferInput:
+      type: object
+      required: [priceTenge]
+      properties:
+        priceTenge: { type: integer, minimum: 100, maximum: 1000000 }
+        message: { type: string, maxLength: 500 }
+
+    AcceptOfferInput:
+      type: object
+      required: [offerId]
+      properties:
+        offerId: { type: string }
+
+    Escrow:
+      type: object
+      required: [active, commissionPercent]
+      properties:
+        active: { type: boolean }
+        amountTenge: { type: integer, nullable: true }
+        commissionTenge: { type: integer, nullable: true }
+        commissionPercent: { type: number, format: float }
+        payoutTenge: { type: integer, nullable: true }
+        status:
+          type: string
+          enum: [none, held, released, refunded]
+          nullable: true
+
+    Review:
+      type: object
+      required: [id, taskId, fromUser, toUser, rating, comment, createdAt]
+      properties:
+        id: { type: string }
+        taskId: { type: string }
+        fromUser:
+          $ref: "#/components/schemas/User"
+        toUser:
+          $ref: "#/components/schemas/User"
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    NewReviewInput:
+      type: object
+      required: [rating, toUserId]
+      properties:
+        toUserId: { type: string }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 1000 }
+
+    Wallet:
+      type: object
+      required: [balanceTenge, heldTenge, transactions]
+      properties:
+        balanceTenge: { type: integer, description: Доступный баланс }
+        heldTenge: { type: integer, description: Заморожено в безопасных сделках }
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletTransaction"
+
+    WalletTransaction:
+      type: object
+      required: [id, kind, amountTenge, createdAt, description]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [deposit, hold, release, refund, commission, payout]
+        amountTenge: { type: integer }
+        taskId: { type: string, nullable: true }
+        description: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    DashboardSummary:
+      type: object
+      required: [openTasksCount, inProgressCount, completedTodayCount, averagePriceTenge, totalEscrowHeldTenge, commissionPercent, categoryCounts]
+      properties:
+        openTasksCount: { type: integer }
+        inProgressCount: { type: integer }
+        completedTodayCount: { type: integer }
+        averagePriceTenge: { type: integer }
+        totalEscrowHeldTenge: { type: integer }
+        commissionPercent: { type: number, format: float }
+        categoryCounts:
+          type: array
+          items:
+            type: object
+            required: [category, count]
+            properties:
+              category:
+                $ref: "#/components/schemas/TaskCategory"
+              count: { type: integer }
+
+    ActivityEvent:
+      type: object
+      required: [id, kind, message, createdAt]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [task_created, task_accepted, task_ready, task_completed, task_cancelled, review_posted]
+        message: { type: string }
+        taskId: { type: string, nullable: true }
+        userName: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
